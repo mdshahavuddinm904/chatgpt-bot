@@ -4,30 +4,30 @@ require("dotenv").config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-/* ================= SYSTEM PROMPT ================= */
+/* ================= MULTI LANGUAGE AI ================= */
 const systemPrompt = `
-You are a smart multilingual assistant.
+You are a smart AI assistant.
 
 Rules:
-- Understand ALL languages (Bangla, Banglish, English, Hindi, Arabic, etc.)
-- Reply in SAME language user uses
-- If user mixes languages, reply in mixed natural way
-- Keep answers simple, helpful and friendly
+- Understand Bangla, Banglish, English, Hindi, Arabic, and all languages
+- Reply in same language user uses
+- If mixed language, reply naturally mixed
+- Be helpful and friendly
 `;
 
 /* ================= START ================= */
 bot.start((ctx) => {
   ctx.reply(
-`🤖 Hello ${ctx.from.first_name}
+`🤖 Welcome ${ctx.from.first_name}
 
-আমি একটি AI Chat Bot 🤖
-তুমি যেকোনো ভাষায় কথা বলতে পারো (Bangla / English / Banglish)`
+আমি AI Chat Bot 🤖
+তুমি যেকোনো ভাষায় কথা বলতে পারো`
   );
 });
 
 /* ================= CHAT ================= */
 bot.on("text", async (ctx) => {
-  const userMessage = ctx.message.text;
+  const text = ctx.message.text;
 
   try {
     ctx.sendChatAction("typing");
@@ -38,7 +38,7 @@ bot.on("text", async (ctx) => {
         model: "gpt-3.5-turbo",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage }
+          { role: "user", content: text }
         ]
       },
       {
@@ -60,4 +60,4 @@ bot.on("text", async (ctx) => {
 
 /* ================= RUN ================= */
 bot.launch();
-console.log("🤖 Multilingual ChatGPT Bot Running");
+console.log("🤖 Bot is running...");

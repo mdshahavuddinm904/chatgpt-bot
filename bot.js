@@ -1,6 +1,6 @@
 const { Telegraf } = require("telegraf");
 
-// node-fetch fix (Railway safe)
+// Safe fetch for Railway / Node 22
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
@@ -29,7 +29,7 @@ bot.on("text", async (ctx) => {
     await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

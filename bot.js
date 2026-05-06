@@ -30,7 +30,7 @@ bot.on("text", async (ctx) => {
     await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
     // ✅ Gemini v1 API URL (Updated)
-    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const res = await fetch(apiUrl, {
       method: "POST",

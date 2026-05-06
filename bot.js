@@ -9,7 +9,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.start((ctx) => {
   ctx.reply(`👋 Welcome to AI Chat Bot 🤖
 
-✨ আমি তোমার **Gemini 2.5 Flash** Assistant
+✨ আমি তোমার **Gemini 1.5 Flash** Assistant
 💬 যেকোনো ভাষায় কথা বলো — বাংলা, Banglish, English
 
 🚀 টাইপ করো!`);
@@ -19,10 +19,13 @@ bot.start((ctx) => {
 bot.on("text", async (ctx) => {
   try {
     const msg = ctx.message.text;
+    
+    // টেলিগ্রামে 'typing' অ্যাকশন দেখাবে
     await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
+    // এখানে মডেলের নাম gemini-1.5-flash-latest করা হয়েছে
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,7 +46,7 @@ bot.on("text", async (ctx) => {
     if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
       reply = data.candidates[0].content.parts[0].text;
     } else if (data?.error) {
-      reply = `❌ ${data.error.message}`;
+      reply = `❌ Error: ${data.error.message}`;
       console.error("API Error:", data.error);
     }
 
@@ -56,8 +59,9 @@ bot.on("text", async (ctx) => {
 });
 
 bot.launch()
-  .then(() => console.log("🚀 Bot Running with Gemini 2.5 Flash..."))
+  .then(() => console.log("🚀 Bot Running with Gemini 1.5 Flash..."))
   .catch(err => console.error(err));
 
+// স্মুথ স্টপ করার জন্য
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));

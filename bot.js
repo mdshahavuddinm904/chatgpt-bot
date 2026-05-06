@@ -1,63 +1,64 @@
 const { Telegraf } = require("telegraf");
-const OpenAI = require("openai");
 
-// Railway variables থেকে token নেয়
 const bot = new Telegraf(process.env.BOT_TOKEN);
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 /* ================= START ================= */
 bot.start((ctx) => {
-  ctx.reply(`👋 Welcome!
+  ctx.reply(
+`👋 Welcome to AI Chat Bot 🤖
 
-🤖 I am your AI Chat Bot
+✨ আমি তোমার Smart AI Assistant
+💬 তুমি আমাকে যেকোনো ভাষায় মেসেজ করতে পারো:
+- বাংলা 🇧🇩
+- Banglish ✍️
+- English 🇬🇧
 
-💬 You can talk with me in:
-- English
-- বাংলা
-- Banglish
-
-👉 Just send a message`);
+🚀 শুধু টাইপ করো, আমি reply দিবো!`
+  );
 });
 
 /* ================= HELP ================= */
-bot.command("help", (ctx) => {
-  ctx.reply(`📖 Help Menu
+bot.help((ctx) => {
+  ctx.reply(
+`📖 Help Menu
 
-💬 Just send any message
-🌍 Supports all languages
+💬 শুধু মেসেজ পাঠাও
+🤖 আমি তোমার প্রশ্নের উত্তর দিবো
 
 Examples:
-- Hello
-- tumi kemon aso
-- আমি কি করতে পারি?`);
+- hello
+- তুমি কেমন আছো?
+- what is AI?`
+  );
 });
 
 /* ================= CHAT ================= */
 bot.on("text", async (ctx) => {
   try {
-    const userMsg = ctx.message.text;
+    const msg = ctx.message.text;
 
-    // typing দেখাবে
     await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "Reply in same language user uses (Bangla, Banglish, English). Keep answers simple and friendly."
-        },
-        {
-          role: "user",
-          content: userMsg
-        }
-      ]
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: msg }]
+            }
+          ]
+        })
+      }
+    );
 
-    const reply = res.choices[0].message.content;
+    const data = await res.json();
+
+    const reply =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "❌ No response from AI";
 
     ctx.reply(reply);
 
@@ -65,11 +66,6 @@ bot.on("text", async (ctx) => {
     console.log(err);
     ctx.reply("❌ Error occurred, try again later");
   }
-});
-
-/* ================= ERROR ================= */
-bot.catch((err) => {
-  console.log("Bot Error:", err);
 });
 
 /* ================= RUN ================= */

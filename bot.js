@@ -1,80 +1,94 @@
 const { Telegraf } = require("telegraf");
 
-// Safe fetch for Railway / Node 22+
+// Node 22 safe fetch
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-/* ================= START MESSAGE ================= */
+// ✅ Models (from your list)
+const MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash"
+];
+
+/* ================= START ================= */
 bot.start((ctx) => {
   ctx.reply(
 `👋 Welcome to AI Chat Bot 🤖
 
-✨ আমি তোমার AI Assistant (Gemini 1.5)
-💬 যেকোনো ভাষায় কথা বলতে পারো:
-- বাংলা 🇧🇩
-- Banglish ✍️
-- English 🇬🇧
+✨ আমি তোমার Gemini AI Assistant
+💬 বাংলা / English / Banglish সাপোর্ট করি
 
-🚀 যেকোনো কিছু লিখে পাঠাও, আমি উত্তর দিচ্ছি!`
+🚀 এখন শুধু টাইপ করো!`
   );
 });
 
-/* ================= CHAT LOGIC ================= */
-bot.on("text", async (ctx) => {
+/* ================= GEMINI CALL ================= */
+async function askGemini(text, modelIndex = 0) {
+  if (modelIndex >= MODELS.length) {
+    return "❌ সব model fail করেছে, পরে আবার চেষ্টা করো।";
+  }
+
+  const model = MODELS[modelIndex];
+
   try {
-    const msg = ctx.message.text;
-
-    // ইউজারকে বোঝানো যে বট টাইপ করছে
-    await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
-
-    // ✅ Gemini v1 API URL (Updated)
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: msg }]
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024
           }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-          topP: 0.95,
-        }
-      })
-    });
+        })
+      }
+    );
 
     const data = await res.json();
 
-    let reply = "❌ দুঃখিত, কোনো উত্তর পাওয়া যায়নি।";
-
-    // উত্তর চেক করা
     if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      reply = data.candidates[0].content.parts[0].text;
-    } 
-    else if (data?.error) {
-      console.error("Gemini API Error:", data.error);
-      reply = `❌ API Error: ${data.error.message}`;
+      return data.candidates[0].content.parts[0].text;
     }
+
+    // ❌ যদি error হয় → next model try করবে
+    console.log(`Model failed: ${model}`, data?.error?.message);
+    return await askGemini(text, modelIndex + 1);
+
+  } catch (err) {
+    console.log("Fetch error:", err.message);
+    return await askGemini(text, modelIndex + 1);
+  }
+}
+
+/* ================= CHAT ================= */
+bot.on("text", async (ctx) => {
+  const msg = ctx.message.text;
+
+  try {
+    await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
+
+    const reply = await askGemini(msg);
 
     await ctx.reply(reply);
 
   } catch (err) {
-    console.error("SERVER ERROR:", err);
-    ctx.reply("❌ সার্ভারে একটু সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।");
+    console.log("BOT ERROR:", err);
+    ctx.reply("❌ সার্ভারে সমস্যা হয়েছে, পরে চেষ্টা করো।");
   }
 });
 
-/* ================= LAUNCH BOT ================= */
+/* ================= LAUNCH ================= */
 bot.launch()
-  .then(() => console.log("🚀 Bo hocche ai bot is Running..."))
-  .catch((err) => console.error("Bot Launch Error:", err));
+  .then(() => console.log("🚀 Bot Running Successfully"))
+  .catch((err) => console.log("Launch Error:", err));
 
-// Graceful shutdown
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));

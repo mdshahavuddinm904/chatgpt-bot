@@ -28,8 +28,9 @@ bot.on("text", async (ctx) => {
 
     await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
+    // ✅ Fixed URL with latest working model
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -38,7 +39,12 @@ bot.on("text", async (ctx) => {
             {
               parts: [{ text: msg }]
             }
-          ]
+          ],
+          // Optional: Better response quality
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000,
+          }
         })
       }
     );
@@ -49,20 +55,27 @@ bot.on("text", async (ctx) => {
 
     let reply = "❌ No response from AI";
 
-    if (data?.candidates?.length > 0) {
+    if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
       reply = data.candidates[0].content.parts[0].text;
-    } else if (data?.error) {
-      reply = "❌ " + data.error.message;
+    } 
+    else if (data?.error) {
+      reply = `❌ Error: ${data.error.message}`;
+      console.error("Gemini API Error:", data.error);
     }
 
-    ctx.reply(reply);
+    await ctx.reply(reply);
 
   } catch (err) {
-    console.log("ERROR:", err);
-    ctx.reply("❌ API error occurred");
+    console.error("ERROR:", err);
+    ctx.reply("❌ সার্ভারে সমস্যা হয়েছে, পরে আবার চেষ্টা করো।");
   }
 });
 
 /* ================= START BOT ================= */
-bot.launch();
-console.log("🚀 Bot Running...");
+bot.launch()
+  .then(() => console.log("🚀 Bot Running..."))
+  .catch((err) => console.error("Bot Launch Error:", err));
+
+// Graceful shutdown
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));

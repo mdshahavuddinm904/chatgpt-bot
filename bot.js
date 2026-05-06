@@ -1,62 +1,79 @@
 require("dotenv").config();
 
 const { Telegraf } = require("telegraf");
-const axios = require("axios");
+const OpenAI = require("openai");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-/* ================= AI FUNCTION ================= */
-async function askAI(text) {
-  try {
-    const res = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a helpful assistant. You understand Bangla, Banglish, and English and reply in the same language the user uses."
-          },
-          {
-            role: "user",
-            content: text
-          }
-        ]
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-
-    return res.data.choices[0].message.content;
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    return "❌ Sorry, AI error occurred. Try again later.";
-  }
-}
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 /* ================= START ================= */
 bot.start((ctx) => {
-  ctx.reply(
-    "👋 Welcome to ChatGPT Bot\n\n💬 Just send any message and I will reply!"
-  );
+  ctx.reply(`👋 Welcome!
+
+🤖 I am your AI Chat Bot
+
+💬 You can talk with me in:
+- English
+- Bangla
+- Banglish
+
+Type anything...`);
 });
 
-/* ================= MESSAGE HANDLER ================= */
+/* ================= HELP ================= */
+bot.command("help", (ctx) => {
+  ctx.reply(`📖 Help Menu
+
+💬 Just send any message
+🤖 I will reply using AI
+
+🌍 Supports all languages`);
+});
+
+/* ================= CHAT SYSTEM ================= */
 bot.on("text", async (ctx) => {
-  const userText = ctx.message.text;
+  try {
+    const userMsg = ctx.message.text;
 
-  ctx.sendChatAction("typing");
+    // typing indicator
+    await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
-  const reply = await askAI(userText);
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a friendly helpful assistant. Reply in user's language (Bangla, Banglish, English automatically)."
+        },
+        {
+          role: "user",
+          content: userMsg
+        }
+      ]
+    });
 
-  ctx.reply(reply);
+    const reply = response.choices[0].message.content;
+
+    ctx.reply(reply);
+
+  } catch (err) {
+    console.error(err);
+    ctx.reply("❌ Error occurred. Try again later.");
+  }
+});
+
+/* ================= ERROR HANDLE ================= */
+bot.catch((err) => {
+  console.error("Bot Error:", err);
 });
 
 /* ================= LAUNCH ================= */
 bot.launch();
-console.log("🚀 Bot is running...");
+console.log("🚀 Bot Running...");
+
+/* ================= STOP (optional) ================= */
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));

@@ -24,13 +24,15 @@ bot.on("text", async (ctx) => {
 
     const data = await res.json();
 
-    console.log("FULL RESPONSE:", JSON.stringify(data, null, 2));
+    console.log("FULL DATA:", data);
 
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // SAFE extract
+    let reply = "❌ No response from AI";
 
-    if (!reply) {
-      return ctx.reply("❌ Gemini blocked / key invalid");
+    if (data.candidates && data.candidates.length > 0) {
+      reply = data.candidates[0].content.parts[0].text;
+    } else if (data.error) {
+      reply = "❌ " + data.error.message;
     }
 
     ctx.reply(reply);

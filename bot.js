@@ -1,8 +1,7 @@
-require("dotenv").config();
-
 const { Telegraf } = require("telegraf");
 const OpenAI = require("openai");
 
+// Railway variables থেকে token নেয়
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const openai = new OpenAI({
@@ -17,10 +16,10 @@ bot.start((ctx) => {
 
 💬 You can talk with me in:
 - English
-- Bangla
+- বাংলা
 - Banglish
 
-Type anything...`);
+👉 Just send a message`);
 });
 
 /* ================= HELP ================= */
@@ -28,25 +27,28 @@ bot.command("help", (ctx) => {
   ctx.reply(`📖 Help Menu
 
 💬 Just send any message
-🤖 I will reply using AI
+🌍 Supports all languages
 
-🌍 Supports all languages`);
+Examples:
+- Hello
+- tumi kemon aso
+- আমি কি করতে পারি?`);
 });
 
-/* ================= CHAT SYSTEM ================= */
+/* ================= CHAT ================= */
 bot.on("text", async (ctx) => {
   try {
     const userMsg = ctx.message.text;
 
-    // typing indicator
+    // typing দেখাবে
     await ctx.telegram.sendChatAction(ctx.chat.id, "typing");
 
-    const response = await openai.chat.completions.create({
+    const res = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are a friendly helpful assistant. Reply in user's language (Bangla, Banglish, English automatically)."
+          content: "Reply in same language user uses (Bangla, Banglish, English). Keep answers simple and friendly."
         },
         {
           role: "user",
@@ -55,25 +57,21 @@ bot.on("text", async (ctx) => {
       ]
     });
 
-    const reply = response.choices[0].message.content;
+    const reply = res.choices[0].message.content;
 
     ctx.reply(reply);
 
   } catch (err) {
-    console.error(err);
-    ctx.reply("❌ Error occurred. Try again later.");
+    console.log(err);
+    ctx.reply("❌ Error occurred, try again later");
   }
 });
 
-/* ================= ERROR HANDLE ================= */
+/* ================= ERROR ================= */
 bot.catch((err) => {
-  console.error("Bot Error:", err);
+  console.log("Bot Error:", err);
 });
 
-/* ================= LAUNCH ================= */
+/* ================= RUN ================= */
 bot.launch();
 console.log("🚀 Bot Running...");
-
-/* ================= STOP (optional) ================= */
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));

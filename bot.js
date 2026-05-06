@@ -1,74 +1,105 @@
 const { Telegraf } = require("telegraf");
 
-// Node 22 safe fetch
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// ✅ Models (from your list)
-const MODELS = [
+/* ================= MODELS ================= */
+const TEXT_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash"
 ];
+
+// Image model (from your list)
+const IMAGE_MODEL = "gemini-2.5-flash-image";
 
 /* ================= START ================= */
 bot.start((ctx) => {
   ctx.reply(
 `👋 Welcome to AI Chat Bot 🤖
 
-✨ আমি তোমার Gemini AI Assistant
-💬 বাংলা / English / Banglish সাপোর্ট করি
+✨ Gemini AI Assistant
+💬 Text + Image Generator
 
-🚀 এখন শুধু টাইপ করো!`
+Commands:
+👉 /img prompt (image generate)
+👉 normal message (chat)`
   );
 });
 
-/* ================= GEMINI CALL ================= */
-async function askGemini(text, modelIndex = 0) {
-  if (modelIndex >= MODELS.length) {
-    return "❌ সব model fail করেছে, পরে আবার চেষ্টা করো।";
+/* ================= TEXT AI ================= */
+async function askGemini(text) {
+  for (let model of TEXT_MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text }] }]
+          })
+        }
+      );
+
+      const data = await res.json();
+
+      if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text;
+      }
+
+      if (data?.error) {
+        console.log(`❌ ${model} error:`, data.error.message);
+        continue;
+      }
+
+    } catch (err) {
+      console.log(`❌ ${model} fetch error:`, err.message);
+      continue;
+    }
   }
 
-  const model = MODELS[modelIndex];
+  return "❌ AI এখন কাজ করছে না";
+}
 
+/* ================= IMAGE AI ================= */
+async function generateImage(prompt) {
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text }]
+              parts: [{ text: prompt }]
             }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1024
-          }
+          ]
         })
       }
     );
 
     const data = await res.json();
 
-    if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      return data.candidates[0].content.parts[0].text;
+    // Gemini image output (inline data / url)
+    const img =
+      data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData;
+
+    if (img?.data) {
+      return Buffer.from(img.data, "base64");
     }
 
-    // ❌ যদি error হয় → next model try করবে
-    console.log(`Model failed: ${model}`, data?.error?.message);
-    return await askGemini(text, modelIndex + 1);
+    return null;
 
   } catch (err) {
-    console.log("Fetch error:", err.message);
-    return await askGemini(text, modelIndex + 1);
+    console.log("IMAGE ERROR:", err.message);
+    return null;
   }
 }
 
-/* ================= CHAT ================= */
+/* ================= TEXT CHAT ================= */
 bot.on("text", async (ctx) => {
   const msg = ctx.message.text;
 
@@ -77,18 +108,36 @@ bot.on("text", async (ctx) => {
 
     const reply = await askGemini(msg);
 
-    await ctx.reply(reply);
+    ctx.reply(reply);
 
   } catch (err) {
-    console.log("BOT ERROR:", err);
-    ctx.reply("❌ সার্ভারে সমস্যা হয়েছে, পরে চেষ্টা করো।");
+    ctx.reply("❌ সার্ভার সমস্যা");
   }
+});
+
+/* ================= IMAGE COMMAND ================= */
+bot.command("img", async (ctx) => {
+  const prompt = ctx.message.text.replace("/img", "").trim();
+
+  if (!prompt) {
+    return ctx.reply("⚠️ /img লিখে কিছু prompt দাও");
+  }
+
+  await ctx.reply("🎨 Image তৈরি হচ্ছে...");
+
+  const image = await generateImage(prompt);
+
+  if (!image) {
+    return ctx.reply("❌ Image generate হয়নি");
+  }
+
+  ctx.replyWithPhoto({ source: image });
 });
 
 /* ================= LAUNCH ================= */
 bot.launch()
-  .then(() => console.log("🚀 Bot Running Successfully"))
-  .catch((err) => console.log("Launch Error:", err));
+  .then(() => console.log("🚀 Bot Running"))
+  .catch((err) => console.log(err));
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));

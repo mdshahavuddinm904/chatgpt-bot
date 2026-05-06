@@ -1,5 +1,5 @@
 {
-  "name": "telegram-bot",
+  "name": "chatgpt-bot",
   "version": "1.0.0",
   "main": "bot.js",
   "scripts": {
@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "telegraf": "^4.16.3",
-    "fs": "0.0.1-security"
+    "dotenv": "^16.4.5",
+    "openai": "^4.0.0"
   }
 }
